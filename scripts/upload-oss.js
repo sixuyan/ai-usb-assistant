@@ -14,7 +14,7 @@ const accessKeySecret = process.argv[6];
 async function putObject(objectKey, filePath) {
   return new Promise((resolve) => {
     const body = fs.readFileSync(filePath);
-    const md5 = crypto.createHash('md5').update(body).digest('base64');
+    const md5Hash = crypto.createHash('md5').update(body).digest('base64');
 
     // Format date as RFC 7231 (Sun, 18 May 2026 19:24:00 GMT)
     const d = new Date();
@@ -26,7 +26,8 @@ async function putObject(objectKey, filePath) {
       : objectKey.endsWith('.html') ? 'text/html'
       : 'application/octet-stream';
 
-    const signedString = `PUT\n\n${contentType}\n${md5}\n${dateStr}\n/${bucket}/${objectKey}`;
+    // OSS v1 signature: method\ncontentMD5\ncontentType\ndate\nbucketPath
+    const signedString = `PUT\n${md5Hash}\n${contentType}\n${dateStr}\n/${bucket}/${objectKey}`;
     const signature = crypto.createHmac('sha1', accessKeySecret).update(signedString).digest('base64');
     const auth = `OSS ${accessKeyId}:${signature}`;
 
@@ -36,7 +37,7 @@ async function putObject(objectKey, filePath) {
       method: 'PUT',
       headers: {
         'Authorization': auth,
-        'Content-MD5': md5,
+        'Content-MD5': md5Hash,
         'Content-Type': contentType,
         'Content-Length': body.length,
         'Date': dateStr
@@ -62,7 +63,9 @@ async function putObject(objectKey, filePath) {
 }
 
 async function main() {
-  const baseDir = path.join(process.cwd(), 'releases', channel);
+  // generate-manifest stages files at releases/<channel>/files/ and manifest at releases/<channel>/
+  const filesBaseDir = path.join(process.cwd(), 'releases', channel, 'files');
+  const manifestDir = path.join(process.cwd(), 'releases', channel);
   const files = [];
   function walk(dir) {
     for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -71,13 +74,23 @@ async function main() {
       else files.push(full);
     }
   }
-  walk(baseDir);
-  console.log(`Uploading ${files.length} files from ${baseDir}...`);
+  if (fs.existsSync(filesBaseDir)) walk(filesBaseDir);
+  console.log(`Uploading ${files.length} files from ${filesBaseDir}...`);
 
   for (const file of files) {
-    const rel = path.relative(baseDir, file).replace(/\\/g, '/');
+    // file e.g. releases/stable/files/system/scripts/boot.ps1
+    // object key = system/scripts/boot.ps1  (no prefix needed)
+    const rel = path.relative(filesBaseDir, file).replace(/\\/g, '/');
     await putObject(rel, file);
   }
+
+  // Also upload manifest.json from releases/stable/
+  const manifestPath = path.join(manifestDir, 'manifest.json');
+  if (fs.existsSync(manifestPath)) {
+    console.log('Uploading manifest.json...');
+    await putObject('manifest.json', manifestPath);
+  }
+
   console.log('Upload complete!');
 }
 
