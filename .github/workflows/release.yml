@@ -92,9 +92,9 @@ jobs:
             # Build authorization
             $date = (Get-Date).ToUniversalTime().ToString("ddd, dd MMM yyyy HH:mm:ss GMT")
             $contentType = if ($file.Extension -eq ".json") { "application/json" } elseif ($file.Extension -eq ".html") { "text/html" } else { "application/octet-stream" }
-            $signedHeaders = "content-md5;content-type;date;host"
             $signedString = "PUT`n`n$contentType`n$contentMD5`n$date`n`n/$bucket/$objectKey"
-            $signature = [Convert]::ToBase64String([System.Security.Cryptography.HMAC]::Create([System.Security.Cryptography.HMACAlgorithm]::Create("HMACSHA1")).ComputeHash([System.Text.Encoding]::UTF8.GetBytes($accessKeySecret)))
+            $hmac = [System.Security.Cryptography.HMACSHA1]::new([System.Text.Encoding]::UTF8.GetBytes($accessKeySecret))
+            $signature = [Convert]::ToBase64String($hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($signedString)))
             $auth = "OSS $accessKeyId`:$signature"
 
             Write-Host "Uploading $objectKey..."
