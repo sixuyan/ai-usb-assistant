@@ -37,6 +37,8 @@ env:
 jobs:
   build-and-release:
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       # ---- Checkout ----
@@ -116,7 +118,7 @@ jobs:
 
       # ---- Create GitHub Release ----
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: "v${{ steps.version.outputs.VERSION }}"
           tag_name: ${{ github.ref_name }}
