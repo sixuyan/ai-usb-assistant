@@ -1,0 +1,135 @@
+# .github/workflows/release.yml
+# =========================================================================
+# AI USB Assistant - Automated Release Pipeline
+#
+# Triggered by: pushing a version tag (e.g. v2026.5.19)
+#
+# Workflow:
+#   1. Checkout code
+#   2. Run generate-manifest.ps1 to create manifest + stage files
+#   3. Upload to Alibaba Cloud OSS
+#   4. Create GitHub Release with release notes
+# =========================================================================
+
+name: Release to OSS
+
+on:
+  push:
+    tags:
+      - 'v*'               # Trigger on version tags: v2026.5.19, v1.0.0, etc.
+  workflow_dispatch:        # Allow manual trigger
+    inputs:
+      channel:
+        description: 'Release channel'
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - stable
+          - beta
+
+env:
+  OSS_BUCKET: ai-usb-updates
+  OSS_ENDPOINT: oss-cn-hangzhou.aliyuncs.com
+  OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+  OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      # ---- Checkout ----
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ---- Read version from tag ----
+      - name: Set version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $ver = "${{ github.ref_name }}" -replace '^v', ''
+          } else {
+            $ver = Get-Content system/VERSION -Raw
+          }
+          echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $ver"
+
+      # ---- Generate manifest ----
+      - name: Generate manifest
+        shell: pwsh
+        run: |
+          $channel = "${{ inputs.channel || 'stable' }}"
+          .\system\scripts\generate-manifest.ps1 `
+            -Channel $channel `
+            -ReleaseNotes "Automated release ${{ steps.version.outputs.VERSION }}" `
+            -Upload `
+            -Quiet
+
+      # ---- Setup ossutil ----
+      - name: Setup ossutil
+        shell: pwsh
+        run: |
+          $url = "https://gosspublic.alicdn.com/ossutil/1.7.19/ossutil64.zip"
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\ossutil.zip"
+          Expand-Archive "$env:RUNNER_TEMP\ossutil.zip" -DestinationPath "$env:RUNNER_TEMP\ossutil"
+          echo "$env:RUNNER_TEMP\ossutil" >> $env:GITHUB_PATH
+
+      - name: Configure ossutil
+        shell: pwsh
+        run: |
+          ossutil config -e $env:OSS_ENDPOINT `
+                         -i $env:OSS_ACCESS_KEY_ID `
+                         -k $env:OSS_ACCESS_KEY_SECRET `
+                         -L CH
+
+      # ---- Upload to OSS ----
+      - name: Upload manifest
+        shell: pwsh
+        run: |
+          $channel = "${{ inputs.channel || 'stable' }}"
+          ossutil cp releases/$channel/manifest.json `
+            oss://$env:OSS_BUCKET/releases/$channel/manifest.json -f
+
+      - name: Upload files
+        shell: pwsh
+        run: |
+          $channel = "${{ inputs.channel || 'stable' }}"
+          ossutil cp releases/$channel/files/ `
+            oss://$env:OSS_BUCKET/releases/$channel/files/ -r -f -u
+
+      # ---- Create GitHub Release ----
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "v${{ steps.version.outputs.VERSION }}"
+          tag_name: ${{ github.ref_name }}
+          body: |
+            ## AI USB Assistant v${{ steps.version.outputs.VERSION }}
+
+            ### Update URL
+            ```
+            https://${{ env.OSS_BUCKET }}.${{ env.OSS_ENDPOINT }}/releases/stable/manifest.json
+            ```
+
+            ### How to update
+            1. Insert your USB drive
+            2. Double-click `UPDATE.bat`
+            3. Restart the assistant
+
+            ### Changes
+            - See commit history for details
+          generate_release_notes: true
+
+      # ---- Post-release summary ----
+      - name: Summary
+        shell: pwsh
+        run: |
+          $channel = "${{ inputs.channel || 'stable' }}"
+          Write-Host "========================================" -ForegroundColor Green
+          Write-Host " Release Complete!" -ForegroundColor Green
+          Write-Host " Version:  ${{ steps.version.outputs.VERSION }}" -ForegroundColor Cyan
+          Write-Host " Channel:  $channel" -ForegroundColor Cyan
+          Write-Host " Manifest: https://$env:OSS_BUCKET.$env:OSS_ENDPOINT/releases/$channel/manifest.json" -ForegroundColor Cyan
+          Write-Host "========================================" -ForegroundColor Green

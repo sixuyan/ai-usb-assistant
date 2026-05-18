@@ -1,0 +1,15 @@
+{
+  "product": "ai-usb-assistant",
+  "version": "2026.5.18-alpha.1",
+  "channel": "alpha",
+  "minUserLayerVersion": 1,
+  "compatibility": {
+    "openclaw": ">=2026.3.24",
+    "node": ">=22.12.0"
+  },
+  "files": {},
+  "removedFiles": [],
+  "releaseNotes": "Initial alpha build - two-layer architecture prototype",
+  "publishedAt": "2026-05-18T00:00:00Z",
+  "updateType": "initial"
+}

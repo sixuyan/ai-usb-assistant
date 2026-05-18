@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 助手 - 配置中心</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; }
+.container { max-width: 720px; margin: 0 auto; padding: 28px 20px 60px; }
+h1 { text-align: center; font-size: 1.8em; margin-bottom: 4px; color: #ff6b35; }
+.subtitle { text-align: center; color: #888; margin-bottom: 24px; font-size: 0.92em; }
+
+.steps { display: flex; gap: 0; margin-bottom: 24px; background: #1a1a1a; border-radius: 10px; overflow: hidden; border: 1px solid #333; }
+.step { flex: 1; text-align: center; padding: 12px 8px; font-size: 0.85em; color: #666; cursor: pointer; transition: all 0.2s; }
+.step.active { color: #ff6b35; background: rgba(255,107,53,0.08); font-weight: 600; }
+.step.done { color: #4caf50; }
+.step .num { display: inline-block; width: 22px; height: 22px; line-height: 22px; border-radius: 50%; background: #333; color: #888; font-size: 0.8em; margin-right: 4px; }
+.step.active .num { background: #ff6b35; color: #fff; }
+.step.done .num { background: #4caf50; color: #fff; }
+
+.section { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 24px; margin-bottom: 16px; display: none; }
+.section.active { display: block; }
+.section h2 { color: #ff6b35; font-size: 1.15em; margin-bottom: 6px; }
+.section .desc { color: #888; font-size: 0.88em; margin-bottom: 16px; }
+
+.model-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.model-card { background: #222; border: 2px solid #333; border-radius: 10px; padding: 14px; cursor: pointer; transition: all 0.15s; position: relative; }
+.model-card:hover { border-color: #555; transform: translateY(-1px); }
+.model-card.selected { border-color: #ff6b35; background: rgba(255,107,53,0.06); }
+.model-card h4 { color: #fff; font-size: 0.95em; margin-bottom: 4px; }
+.model-card p { color: #888; font-size: 0.78em; line-height: 1.4; }
+.tag { display: inline-block; font-size: 0.68em; padding: 2px 7px; border-radius: 10px; margin-right: 4px; font-weight: 500; }
+.tag.hot { background: rgba(255,107,53,0.2); color: #ff6b35; }
+.tag.free { background: rgba(76,175,80,0.2); color: #4caf50; }
+.tag.cn { background: rgba(33,150,243,0.2); color: #2196f3; }
+.check { position: absolute; top: 8px; right: 10px; color: #ff6b35; font-size: 1.2em; display: none; }
+.model-card.selected .check { display: block; }
+
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; color: #aaa; font-size: 0.85em; margin-bottom: 6px; }
+.form-group input { width: 100%; padding: 10px 14px; background: #222; border: 1px solid #444; border-radius: 8px; color: #e0e0e0; font-size: 0.95em; }
+.form-group input:focus { outline: none; border-color: #ff6b35; }
+.form-group .hint { color: #666; font-size: 0.75em; margin-top: 4px; }
+.form-group textarea { width: 100%; min-height: 200px; padding: 10px 14px; background: #222; border: 1px solid #444; border-radius: 8px; color: #e0e0e0; font-size: 0.85em; font-family: monospace; resize: vertical; }
+.form-group textarea:focus { outline: none; border-color: #ff6b35; }
+
+.btn { display: inline-block; padding: 12px 28px; border: none; border-radius: 8px; font-size: 0.95em; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+.btn-primary { background: #ff6b35; color: #fff; }
+.btn-primary:hover { background: #e55d2b; }
+.btn-secondary { background: #333; color: #e0e0e0; margin-right: 10px; }
+.btn-secondary:hover { background: #444; }
+.actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+
+.status { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85em; display: none; }
+.status.success { display: block; background: rgba(76,175,80,0.15); color: #81c784; border: 1px solid rgba(76,175,80,0.3); }
+.status.error { display: block; background: rgba(244,67,54,0.15); color: #e57373; border: 1px solid rgba(244,67,54,0.3); }
+
+.info-box { background: rgba(33,150,243,0.08); border: 1px solid rgba(33,150,243,0.2); border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 0.82em; color: #90caf9; }
+
+@media (max-width: 500px) { .model-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>AI 助手 - 配置中心</h1>
+    <p class="subtitle">3 步完成配置，数据保存在 U 盘用户层，更新不丢失</p>
+
+    <div class="steps">
+        <div class="step active" data-step="1"><span class="num">1</span>选择模型</div>
+        <div class="step" data-step="2"><span class="num">2</span>填写密钥</div>
+        <div class="step" data-step="3"><span class="num">3</span>预览保存</div>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <!-- Step 1: Model Selection -->
+    <div class="section active" id="step1">
+        <h2>选择 AI 模型提供商</h2>
+        <p class="desc">选择一个模型提供商，然后填写对应的 API Key 即可开始使用。</p>
+        <div class="model-grid" id="modelGrid"></div>
+        <div class="form-group">
+            <label>或自定义 Base URL（OpenAI 兼容接口）</label>
+            <input type="text" id="customBaseUrl" placeholder="https://api.example.com/v1">
+            <p class="hint">如果你用的是其他兼容 OpenAI 的服务商，在此填入接口地址</p>
+        </div>
+        <div class="form-group">
+            <label>模型 ID</label>
+            <input type="text" id="customModelId" placeholder="gpt-4o / deepseek-chat / minimax-text-01">
+        </div>
+        <div class="actions">
+            <button class="btn btn-primary" onclick="nextStep(2)">下一步 →</button>
+        </div>
+    </div>
+
+    <!-- Step 2: API Key -->
+    <div class="section" id="step2">
+        <h2>填写 API Key</h2>
+        <p class="desc" id="step2Provider">请输入你的 API Key。</p>
+        <div class="info-box">API Key 只保存在你的 U 盘 <code>user/config/</code> 目录中，不会上传到任何服务器。</div>
+        <div class="form-group">
+            <label>API Key</label>
+            <input type="password" id="apiKey" placeholder="sk-...">
+            <p class="hint">密钥不会明文显示在 U 盘根目录（比旧版本更安全）</p>
+        </div>
+        <div class="actions">
+            <button class="btn btn-secondary" onclick="prevStep(1)">← 上一步</button>
+            <button class="btn btn-primary" onclick="nextStep(3)">下一步 →</button>
+        </div>
+    </div>
+
+    <!-- Step 3: Preview & Save -->
+    <div class="section" id="step3">
+        <h2>预览配置并保存</h2>
+        <p class="desc">确认以下配置无误后点击保存。保存后配置写入 U 盘用户层，系统更新不会覆盖。</p>
+        <div class="form-group">
+            <label>生成的配置预览</label>
+            <textarea id="configPreview" readonly></textarea>
+        </div>
+        <div class="actions">
+            <button class="btn btn-secondary" onclick="prevStep(2)">← 上一步</button>
+            <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ---- Model definitions ----
+const MODELS = [
+    { id: 'minimax', name: 'MiniMax', model: 'minimax-text-01', baseUrl: 'https://api.minimaxi.com/v1', tags: ['hot','cn'], desc: '国产大模型，中文能力强' },
+    { id: 'deepseek', name: 'DeepSeek', model: 'deepseek-chat', baseUrl: 'https://api.deepseek.com/v1', tags: ['hot','cn','cheap'], desc: '深度求索，性价比极高' },
+    { id: 'kimi', name: 'Kimi (月之暗面)', model: 'moonshot-v1-8k', baseUrl: 'https://api.moonshot.cn/v1', tags: ['cn'], desc: '长文本处理专家' },
+    { id: 'zhipu', name: '智谱 GLM', model: 'glm-4-plus', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', tags: ['cn'], desc: '清华智谱，综合能力强' },
+    { id: 'qwen', name: '通义千问', model: 'qwen-turbo', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', tags: ['cn','free'], desc: '阿里云，有免费额度' },
+    { id: 'doubao', name: '豆包 (字节)', model: 'doubao-pro-32k', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', tags: ['cn'], desc: '字节跳动，低价高效' },
+    { id: 'openai', name: 'OpenAI', model: 'gpt-4o', baseUrl: 'https://api.openai.com/v1', tags: ['hot'], desc: 'GPT-4o，全球领先' },
+    { id: 'claude', name: 'Anthropic Claude', model: 'claude-sonnet-4-20250514', baseUrl: 'https://api.anthropic.com/v1', tags: ['hot'], desc: 'Claude，安全可靠' },
+    { id: 'groq', name: 'Groq', model: 'llama-3.3-70b', baseUrl: 'https://api.groq.com/openai/v1', tags: ['fast','free'], desc: '超快推理，免费额度' },
+    { id: 'siliconflow', name: '硅基流动', model: 'Qwen/Qwen2.5-7B-Instruct', baseUrl: 'https://api.siliconflow.cn/v1', tags: ['cn','cheap'], desc: '国产开源模型聚合' },
+    { id: 'custom', name: '自定义', model: '', baseUrl: '', tags: [], desc: '兼容 OpenAI 接口即可' }
+];
+
+let currentStep = 1;
+let selectedModel = null;
+
+// ---- Render model cards ----
+function renderModels() {
+    const grid = document.getElementById('modelGrid');
+    grid.innerHTML = MODELS.map(m => `
+        <div class="model-card" data-id="${m.id}" onclick="selectModel('${m.id}')">
+            <span class="check">✓</span>
+            <h4>${m.name} ${m.tags.map(t => `<span class="tag ${t}">${t}</span>`).join('')}</h4>
+            <p>${m.desc}</p>
+        </div>
+    `).join('');
+}
+
+function selectModel(id) {
+    document.querySelectorAll('.model-card').forEach(c => c.classList.remove('selected'));
+    const card = document.querySelector(`.model-card[data-id="${id}"]`);
+    if (card) card.classList.add('selected');
+    selectedModel = MODELS.find(m => m.id === id);
+
+    // Fill custom fields
+    document.getElementById('customBaseUrl').value = selectedModel.baseUrl;
+    document.getElementById('customModelId').value = selectedModel.model;
+}
+
+// ---- Step navigation ----
+function nextStep(step) {
+    if (step === 2 && !selectedModel) {
+        showStatus('请先选择一个模型提供商', 'error');
+        return;
+    }
+    currentStep = step;
+    updateUI();
+}
+
+function prevStep(step) {
+    currentStep = step;
+    updateUI();
+}
+
+function updateUI() {
+    // Update step indicators
+    document.querySelectorAll('.step').forEach((s, i) => {
+        s.classList.remove('active', 'done');
+        if (i + 1 < currentStep) s.classList.add('done');
+        if (i + 1 === currentStep) s.classList.add('active');
+    });
+
+    // Show current section
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('step' + currentStep).classList.add('active');
+
+    // Update step 2 label
+    if (currentStep === 2 && selectedModel) {
+        document.getElementById('step2Provider').textContent =
+            `为 ${selectedModel.name} (${selectedModel.model}) 填写 API Key。`;
+    }
+
+    // Update step 3 preview
+    if (currentStep === 3) {
+        const apiKey = document.getElementById('apiKey').value || '(未填写)';
+        const baseUrl = document.getElementById('customBaseUrl').value || selectedModel?.baseUrl || '';
+        const modelId = document.getElementById('customModelId').value || selectedModel?.model || '';
+
+        const config = generateConfig(selectedModel?.id || 'custom', baseUrl, modelId, apiKey);
+        document.getElementById('configPreview').value = JSON.stringify(config, null, 2);
+    }
+}
+
+// ---- Generate config JSON ----
+function generateConfig(providerId, baseUrl, modelId, apiKey) {
+    return {
+        gateway: {
+            mode: "local",
+            auth: { token: "uclaw" }
+        },
+        models: {
+            mode: "merge",
+            providers: {
+                [providerId]: {
+                    baseUrl: baseUrl,
+                    api: "openai-completions",
+                    models: [{
+                        id: modelId,
+                        name: modelId,
+                        reasoning: true,
+                        input: ["text", "image"],
+                        contextWindow: 262144,
+                        maxTokens: 32768
+                    }]
+                }
+            }
+        },
+        agents: {
+            defaults: {
+                model: { primary: `${providerId}/${modelId}` },
+                models: { [`${providerId}/${modelId}`]: { alias: "AI" } },
+                compaction: { mode: "safeguard" },
+                maxConcurrent: 4,
+                subagents: { maxConcurrent: 8 }
+            }
+        }
+    };
+}
+
+// ---- Save config ----
+async function saveConfig() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey) {
+        showStatus('请填写 API Key', 'error');
+        return;
+    }
+
+    const baseUrl = document.getElementById('customBaseUrl').value.trim() || selectedModel?.baseUrl || '';
+    const modelId = document.getElementById('customModelId').value.trim() || selectedModel?.model || '';
+    const providerId = selectedModel?.id || 'custom';
+
+    if (!baseUrl || !modelId) {
+        showStatus('请填写 Base URL 和模型 ID', 'error');
+        return;
+    }
+
+    const config = generateConfig(providerId, baseUrl, modelId, apiKey);
+
+    try {
+        const res = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showStatus('配置已保存到 U 盘用户层！重启后生效，系统更新不会覆盖此配置。', 'success');
+        } else {
+            showStatus('保存失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (err) {
+        showStatus('保存失败: ' + err.message, 'error');
+    }
+}
+
+function showStatus(msg, type) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status ' + type;
+    if (type === 'success') {
+        setTimeout(() => el.className = 'status', 8000);
+    }
+}
+
+// ---- Init ----
+renderModels();
+// Load existing config if any
+fetch('/api/config').then(r => r.json()).then(config => {
+    if (config && config.models?.providers) {
+        const providers = config.models.providers;
+        const firstProvider = Object.keys(providers)[0];
+        if (firstProvider) {
+            const existing = MODELS.find(m => m.id === firstProvider);
+            if (existing) {
+                selectModel(firstProvider);
+                const p = providers[firstProvider];
+                document.getElementById('customBaseUrl').value = p.baseUrl || '';
+                if (p.models?.[0]?.id) {
+                    document.getElementById('customModelId').value = p.models[0].id;
+                }
+            }
+        }
+    }
+}).catch(() => {});
+
+document.getElementById('apiKey').addEventListener('input', updateUI);
+document.getElementById('customBaseUrl').addEventListener('input', updateUI);
+document.getElementById('customModelId').addEventListener('input', updateUI);
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+﻿{
+    "private":  true,
+    "description":  "AI USB Assistant - OpenClaw Core",
+    "name":  "ai-usb-core",
+    "version":  "1.0.0",
+    "dependencies":  {
+                         "openclaw":  "latest"
+                     }
+}

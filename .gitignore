@@ -1,0 +1,37 @@
+# AI USB Assistant - .gitignore
+# System layer dependencies (downloaded by setup)
+system/runtime/
+system/core/node_modules/
+system/core/package-lock.json
+
+# Runtime data (generated at boot)
+data/
+cache/
+
+# Update staging
+system_new/
+system_old/
+system_broken/
+
+# User data (never commit - contains secrets)
+user/config/
+user/memory/
+user/identity/
+user/workspace/
+user/devices/
+user/browser/
+user/backups/
+user/logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Temp
+*.tmp
+*.log
