@@ -84,11 +84,11 @@ async function main() {
     await putObject(rel, file);
   }
 
-  // Also upload manifest.json from releases/stable/
+  // Also upload manifest.json from releases/stable/ to releases/stable/manifest.json
   const manifestPath = path.join(manifestDir, 'manifest.json');
   if (fs.existsSync(manifestPath)) {
     console.log('Uploading manifest.json...');
-    await putObject(path.join(channel, 'manifest.json').replace(/\\/g, '/'), manifestPath);
+    await putObject(path.join('releases', channel, 'manifest.json').replace(/\\/g, '/'), manifestPath);
   }
 
   console.log('Upload complete!');
