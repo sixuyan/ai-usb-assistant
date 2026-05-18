@@ -78,23 +78,26 @@ jobs:
           $accessKeyId = "${{ env.OSS_ACCESS_KEY_ID }}"
           $accessKeySecret = "${{ env.OSS_ACCESS_KEY_SECRET }}"
           $channel = "stable"
+          $repoRoot = (Get-Location).Path
 
           # Get all files in releases/$channel/
           $files = Get-ChildItem -Path "releases/$channel" -Recurse -File
           foreach ($file in $files) {
-            $relativePath = $file.FullName.Substring($file.FullName.IndexOf("releases\$channel") + 16).Replace("\", "/")
-            $objectKey = "releases/$channel/$relativePath"
+            # Compute OSS object key relative to releases/<channel>/
+            # e.g. D:\a\...\releases\stable\files\system\scripts\boot.ps1 -> files/system/scripts/boot.ps1
+            $filePathInRepo = $file.FullName.Substring($repoRoot.Length + 1).Replace("\", "/")
+            $objectKey = $filePathInRepo
             $url = "https://$bucket.$endpoint/$objectKey"
 
             # Calculate MD5
-            $md5 = [System.Security.Cryptography.MD5]::Create()
-            $hash = $md5.ComputeHash([System.IO.File]::ReadAllBytes($file.FullName))
+            $md5Instance = [System.Security.Cryptography.MD5]::Create()
+            $hash = $md5Instance.ComputeHash([System.IO.File]::ReadAllBytes($file.FullName))
             $contentMD5 = [Convert]::ToBase64String($hash)
 
-            # Build authorization
-            $date = (Get-Date).ToUniversalTime().ToString("ddd, dd MMM yyyy HH:mm:ss GMT")
+            # Build OSS signature using x-oss-date header (avoids Date format issues)
+            $ossDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
             $contentType = if ($file.Extension -eq ".json") { "application/json" } elseif ($file.Extension -eq ".html") { "text/html" } else { "application/octet-stream" }
-            $signedString = "PUT`n`n$contentType`n$contentMD5`n$date`n`n/$bucket/$objectKey"
+            $signedString = "PUT`n`n$contentType`n$contentMD5`n$ossDate`n/$bucket.$endpoint/$objectKey"
             $hmac = [System.Security.Cryptography.HMACSHA1]::new([System.Text.Encoding]::UTF8.GetBytes($accessKeySecret))
             $signature = [Convert]::ToBase64String($hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($signedString)))
             $auth = "OSS $accessKeyId`:$signature"
@@ -105,8 +108,7 @@ jobs:
                 "Authorization" = $auth
                 "Content-MD5" = $contentMD5
                 "Content-Type" = $contentType
-                "Date" = $date
-                "Host" = "$bucket.$endpoint"
+                "x-oss-date" = $ossDate
               }
               Invoke-RestMethod -Uri $url -Method PUT -Headers $headers -Body ([System.IO.File]::ReadAllBytes($file.FullName)) -ContentType $contentType
               Write-Host "  OK: $objectKey"
