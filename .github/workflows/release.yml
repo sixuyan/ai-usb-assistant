@@ -67,38 +67,17 @@ jobs:
             -Upload `
             -Quiet
 
-      # ---- Setup ossutil ----
-      - name: Setup ossutil
-        shell: pwsh
-        run: |
-          $url = "https://github.com/aliyun/ossutil/releases/download/v1.7.18/ossutil-v1.7.18-windows-64bit.zip"
-          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\ossutil.zip"
-          Expand-Archive "$env:RUNNER_TEMP\ossutil.zip" -DestinationPath "$env:RUNNER_TEMP\ossutil" -Force
-          Get-ChildItem "$env:RUNNER_TEMP\ossutil" -File | Where-Object { $_.Name -like "ossutil*" } | ForEach-Object { $_.FullName }
-          echo "$env:RUNNER_TEMP\ossutil" >> $env:GITHUB_PATH
-
-      - name: Configure ossutil
-        shell: pwsh
-        run: |
-          ossutil config -e $env:OSS_ENDPOINT `
-                         -i $env:OSS_ACCESS_KEY_ID `
-                         -k $env:OSS_ACCESS_KEY_SECRET `
-                         -L CH
-
-      # ---- Upload to OSS ----
-      - name: Upload manifest
-        shell: pwsh
-        run: |
-          $channel = "${{ inputs.channel || 'stable' }}"
-          ossutil cp releases/$channel/manifest.json `
-            oss://$env:OSS_BUCKET/releases/$channel/manifest.json -f
-
-      - name: Upload files
-        shell: pwsh
-        run: |
-          $channel = "${{ inputs.channel || 'stable' }}"
-          ossutil cp releases/$channel/files/ `
-            oss://$env:OSS_BUCKET/releases/$channel/files/ -r -f -u
+      # ---- Upload to OSS using aliyun action ----
+      - name: Upload to OSS
+        uses: osstools/ossutil-actions@v1
+        with:
+          ossutil-version: '1.7.21'
+          oss-access-key-id: ${{ env.OSS_ACCESS_KEY_ID }}
+          oss-access-key-secret: ${{ env.OSS_ACCESS_KEY_SECRET }}
+          oss-endpoint: ${{ env.OSS_ENDPOINT }}
+          oss-bucket: ${{ env.OSS_BUCKET }}
+          local-path: './releases'
+          object-prefix: 'releases'
 
       # ---- Create GitHub Release ----
       - name: Create GitHub Release
