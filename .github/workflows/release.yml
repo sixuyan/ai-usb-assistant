@@ -71,9 +71,10 @@ jobs:
       - name: Setup ossutil
         shell: pwsh
         run: |
-          $url = "https://gosspublic.alicdn.com/ossutil/1.7.19/ossutil64.zip"
+          $url = "https://github.com/aliyun/ossutil/releases/download/v1.7.18/ossutil-v1.7.18-windows-64bit.zip"
           Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\ossutil.zip"
-          Expand-Archive "$env:RUNNER_TEMP\ossutil.zip" -DestinationPath "$env:RUNNER_TEMP\ossutil"
+          Expand-Archive "$env:RUNNER_TEMP\ossutil.zip" -DestinationPath "$env:RUNNER_TEMP\ossutil" -Force
+          Get-ChildItem "$env:RUNNER_TEMP\ossutil" -File | Where-Object { $_.Name -like "ossutil*" } | ForEach-Object { $_.FullName }
           echo "$env:RUNNER_TEMP\ossutil" >> $env:GITHUB_PATH
 
       - name: Configure ossutil
