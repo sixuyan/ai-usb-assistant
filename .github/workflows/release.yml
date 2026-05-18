@@ -67,17 +67,52 @@ jobs:
             -Upload `
             -Quiet
 
-      # ---- Upload to OSS using aliyun action ----
+      # ---- Upload to OSS using PowerShell REST API ----
       - name: Upload to OSS
-        uses: osstools/ossutil-actions@v1
-        with:
-          ossutil-version: '1.7.21'
-          oss-access-key-id: ${{ env.OSS_ACCESS_KEY_ID }}
-          oss-access-key-secret: ${{ env.OSS_ACCESS_KEY_SECRET }}
-          oss-endpoint: ${{ env.OSS_ENDPOINT }}
-          oss-bucket: ${{ env.OSS_BUCKET }}
-          local-path: './releases'
-          object-prefix: 'releases'
+        shell: pwsh
+        run: |
+          $bucket = "${{ env.OSS_BUCKET }}"
+          $endpoint = "${{ env.OSS_ENDPOINT }}"
+          $accessKeyId = "${{ env.OSS_ACCESS_KEY_ID }}"
+          $accessKeySecret = "${{ env.OSS_ACCESS_KEY_SECRET }}"
+          $channel = "stable"
+
+          # Get all files in releases/$channel/
+          $files = Get-ChildItem -Path "releases/$channel" -Recurse -File
+          foreach ($file in $files) {
+            $relativePath = $file.FullName.Substring($file.FullName.IndexOf("releases\$channel") + 16).Replace("\", "/")
+            $objectKey = "releases/$channel/$relativePath"
+            $url = "https://$bucket.$endpoint/$objectKey"
+
+            # Calculate MD5
+            $md5 = [System.Security.Cryptography.MD5]::Create()
+            $hash = $md5.ComputeHash([System.IO.File]::ReadAllBytes($file.FullName))
+            $contentMD5 = [Convert]::ToBase64String($hash)
+
+            # Build authorization
+            $date = (Get-Date).ToUniversalTime().ToString("ddd, dd MMM yyyy HH:mm:ss GMT")
+            $contentType = if ($file.Extension -eq ".json") { "application/json" } elseif ($file.Extension -eq ".html") { "text/html" } else { "application/octet-stream" }
+            $signedHeaders = "content-md5;content-type;date;host"
+            $signedString = "PUT`n`n$contentType`n$contentMD5`n$date`n`n/$bucket/$objectKey"
+            $signature = [Convert]::ToBase64String([System.Security.Cryptography.HMAC]::Create([System.Security.Cryptography.HMACAlgorithm]::Create("HMACSHA1")).ComputeHash([System.Text.Encoding]::UTF8.GetBytes($accessKeySecret)))
+            $auth = "OSS $accessKeyId`:$signature"
+
+            Write-Host "Uploading $objectKey..."
+            try {
+              $headers = @{
+                "Authorization" = $auth
+                "Content-MD5" = $contentMD5
+                "Content-Type" = $contentType
+                "Date" = $date
+                "Host" = "$bucket.$endpoint"
+              }
+              Invoke-RestMethod -Uri $url -Method PUT -Headers $headers -Body ([System.IO.File]::ReadAllBytes($file.FullName)) -ContentType $contentType
+              Write-Host "  OK: $objectKey"
+            } catch {
+              Write-Host "  FAILED: $objectKey - $($_.Exception.Message)"
+            }
+          }
+          Write-Host "Upload complete!"
 
       # ---- Create GitHub Release ----
       - name: Create GitHub Release
