@@ -88,7 +88,7 @@ async function main() {
   const manifestPath = path.join(manifestDir, 'manifest.json');
   if (fs.existsSync(manifestPath)) {
     console.log('Uploading manifest.json...');
-    await putObject('manifest.json', manifestPath);
+    await putObject(path.join(channel, 'manifest.json').replace(/\\/g, '/'), manifestPath);
   }
 
   console.log('Upload complete!');
