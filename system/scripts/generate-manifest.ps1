@@ -101,10 +101,8 @@ foreach ($file in $allFiles) {
 
     # Compute relative path with forward slashes (cross-platform)
     $relPath = $file.FullName.Substring($UsbRoot.Length).TrimStart('\').Replace('\', '/')
-    # In upload mode, prepend "files/" prefix so manifest paths match actual OSS paths
-    if ($Upload) {
-        $relPath = "files/$relPath"
-    }
+    # In upload mode, manifest key gets "files/" prefix but source path stays clean
+    $manifestKey = if ($Upload) { "files/$relPath" } else { $relPath }
 
     # Skip excluded patterns
     $skip = $false
@@ -124,7 +122,7 @@ foreach ($file in $allFiles) {
             $required = $false
         }
 
-        $files[$relPath] = @{
+        $files[$manifestKey] = @{
             sha256   = $hash
             size     = $size
             required = $required
@@ -194,9 +192,11 @@ if ($Upload) {
         Remove-Item $uploadBase -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-    foreach ($relPath in $files.Keys) {
-        $srcFile = Join-Path $UsbRoot $relPath
-        $dstFile = Join-Path $uploadBase $relPath
+    foreach ($manifestKey in $files.Keys) {
+        # manifestKey = "files/system/...", source path = "system/..."
+        $srcRelPath = $manifestKey -replace '^files/', ''
+        $srcFile = Join-Path $UsbRoot $srcRelPath
+        $dstFile = Join-Path $uploadBase $manifestKey
         $dstDir = Split-Path $dstFile -Parent
 
         if (-not (Test-Path $dstDir)) {
