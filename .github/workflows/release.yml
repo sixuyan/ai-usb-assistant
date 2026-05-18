@@ -69,93 +69,16 @@ jobs:
             -Upload `
             -Quiet
 
-      # ---- Upload to OSS using aliyun openapi SDK via node.js ----
+      # ---- Setup Node.js ----
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Upload to OSS via Node.js
-        shell: pwsh
-        run: |
-          node -e "
-          const https = require('https');
-          const http = require('http');
-          const fs = require('fs');
-          const path = require('path');
-          const crypto = require('crypto');
-
-          const bucket = '${{ env.OSS_BUCKET }}';
-          const endpoint = '${{ env.OSS_ENDPOINT }}';
-          const accessKeyId = '${{ env.OSS_ACCESS_KEY_ID }}';
-          const accessKeySecret = '${{ env.OSS_ACCESS_KEY_SECRET }}';
-          const channel = 'stable';
-          const repoRoot = process.cwd();
-
-          function putObject(objectKey, filePath) {
-            return new Promise((resolve, reject) => {
-              const body = fs.readFileSync(filePath);
-              const md5 = crypto.createHash('md5').update(body).digest('base64');
-              const date = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z').replace(/[:-]/g, '').replace(/T(\d{2}):(\d{2}):(\d{2})/, 'T$1$2$3');
-              const contentType = objectKey.endsWith('.json') ? 'application/json' : objectKey.endsWith('.html') ? 'text/html' : 'application/octet-stream';
-
-              const signedString = ['PUT', '', contentType, md5, date, `/${bucket}/${objectKey}`].join('\n');
-              const signature = crypto.createHmac('sha1', accessKeySecret).update(signedString).digest('base64');
-              const auth = \`OSS \${accessKeyId}:\${signature}\`;
-
-              const options = {
-                hostname: bucket + '.' + endpoint,
-                path: '/' + objectKey,
-                method: 'PUT',
-                headers: {
-                  'Authorization': auth,
-                  'Content-MD5': md5,
-                  'Content-Type': contentType,
-                  'Content-Length': body.length,
-                  'x-oss-date': date
-                }
-              };
-
-              const req = https.request(options, (res) => {
-                let data = '';
-                res.on('data', chunk => data += chunk);
-                res.on('end', () => {
-                  if (res.statusCode >= 200 && res.statusCode < 300) {
-                    console.log('  OK: ' + objectKey);
-                    resolve();
-                  } else {
-                    console.log('  FAILED: ' + objectKey + ' (HTTP ' + res.statusCode + ': ' + data.substring(0, 100) + ')');
-                    resolve(); // don't fail整个 upload for one file
-                  }
-                });
-              });
-              req.on('error', e => { console.log('  FAILED: ' + objectKey + ' - ' + e.message); resolve(); });
-              req.write(body);
-              req.end();
-            });
-          }
-
-          async function main() {
-            const baseDir = path.join(repoRoot, 'releases', channel);
-            const files = [];
-            function walk(dir) {
-              for (const f of fs.readdirSync(dir, {withFileTypes: true})) {
-                const full = path.join(dir, f.name);
-                if (f.isDirectory()) walk(full);
-                else files.push(full);
-              }
-            }
-            walk(baseDir);
-
-            for (const file of files) {
-              const rel = path.relative(baseDir, file).replace(/\\\\/g, '/');
-              const objectKey = rel;
-              await putObject(objectKey, file);
-            }
-            console.log('Upload complete!');
-          }
-          main().catch(e => { console.error(e); process.exit(1); });
-          "
+      # ---- Upload to OSS ----
+      - name: Upload to OSS
+        shell: bash
+        run: node scripts/upload-oss.js stable "${{ env.OSS_BUCKET }}" "${{ env.OSS_ENDPOINT }}" "${{ env.OSS_ACCESS_KEY_ID }}" "${{ env.OSS_ACCESS_KEY_SECRET }}"
 
       # ---- Create GitHub Release ----
       - name: Create GitHub Release
