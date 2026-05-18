@@ -345,11 +345,39 @@ if ($missingRequired.Count -gt 0) {
 $remoteManifestJson.Content | Out-File -FilePath (Join-Path $SYSTEM_NEW "manifest.json") -Encoding UTF8
 $remoteVersion | Out-File -FilePath (Join-Path $SYSTEM_NEW "VERSION") -Encoding UTF8 -NoNewline
 
+# =========================================================================
+# Handle node_modules: if package.json changed, run npm install
+# =========================================================================
+$pkgChanged = $toDownload | Where-Object { $_.path -match 'system/core/package\.(json|lock)' }
+if ($pkgChanged) {
+    Write-INFO "Package files changed - installing npm dependencies..."
+    $sysNewCore = Join-Path $SYSTEM_NEW "core"
+    $sysNewNodeDir = Join-Path $SYSTEM_NEW "runtime" "node-win-x64"
+    $sysNewNpm = Join-Path $sysNewNodeDir "npm.cmd"
+
+    if ((Test-Path $sysNewNpm) -and (Test-Path (Join-Path $sysNewCore "package.json"))) {
+        Push-Location $sysNewCore
+        try {
+            $env:PATH = "$sysNewNodeDir;$env:PATH"
+            $npmResult = cmd /c "`"$sysNewNpm`" install --registry=https://registry.npmmirror.com" 2>&1
+            if ($LASTEXITCODE -eq 0 -or (Test-Path (Join-Path $sysNewCore "node_modules" "openclaw" "openclaw.mjs"))) {
+                Write-OK "Dependencies installed in system_new/"
+            } else {
+                Write-WARN "npm install may have had issues - will retry on next boot"
+            }
+        } finally {
+            Pop-Location
+        }
+    } else {
+        Write-WARN "Cannot install dependencies in system_new/ - will be done on next boot"
+    }
+}
+
 Write-Host ""
 Write-Host "  ═══════════════════════════════════════" -ForegroundColor Green
 Write-OK "Update ready: $currentVersion → $remoteVersion"
 Write-INFO "The update will be applied on next restart."
-Write-INFO "Your user data (config, memory, skills) will NOT be affected."
+Write-INFO "Your user data - config, memory, skills - will NOT be affected."
 Write-Host ""
 Write-INFO "Restart now to apply the update, or continue using current version."
 Write-Host "  ═══════════════════════════════════════" -ForegroundColor Green

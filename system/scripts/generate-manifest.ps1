@@ -83,7 +83,9 @@ $files = [ordered]@{}
 $excludePatterns = @(
     "system/manifest.json$",   # Don't self-reference
     "system/.+\.zip$",         # Downloaded archives
-    "system/.+\.tmp$"          # Temp files
+    "system/.+\.tmp$",         # Temp files
+    "node_modules/",           # npm dependencies (installed by setup/update)
+    "\.git/"                   # Git metadata
 )
 
 $allFiles = Get-ChildItem -Path $systemPath -Recurse -File -ErrorAction SilentlyContinue

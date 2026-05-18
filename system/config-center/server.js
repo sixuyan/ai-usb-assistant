@@ -122,6 +122,32 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // ---- API: Version info ----
+    if (req.url === '/api/version' && req.method === 'GET') {
+        try {
+            const versionFile = path.join(USB_ROOT, 'system', 'VERSION');
+            const manifestFile = path.join(USB_ROOT, 'system', 'manifest.json');
+            const version = fs.existsSync(versionFile) ? fs.readFileSync(versionFile, 'utf8').trim() : 'unknown';
+            let manifest = null;
+            if (fs.existsSync(manifestFile)) {
+                try { manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8')); } catch(e) {}
+            }
+            const info = {
+                version: version,
+                channel: manifest ? manifest.channel : 'unknown',
+                product: manifest ? manifest.product : 'ai-usb-assistant',
+                lastUpdate: manifest ? manifest.publishedAt : null,
+                releaseNotes: manifest ? manifest.releaseNotes : null
+            };
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify(info));
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ error: err.message }));
+        }
+        return;
+    }
+
     // ---- Serve static files ----
     let filePath = req.url === '/' ? path.join(STATIC_DIR, 'Config.html') : path.join(STATIC_DIR, req.url);
 

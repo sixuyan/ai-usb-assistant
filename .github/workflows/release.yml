@@ -75,10 +75,15 @@ jobs:
         with:
           node-version: '22'
 
+      # ---- Install OSS SDK ----
+      - name: Install OSS SDK
+        shell: bash
+        run: npm install ali-oss
+
       # ---- Upload to OSS ----
       - name: Upload to OSS
         shell: bash
-        run: node scripts/upload-oss.js stable "${{ env.OSS_BUCKET }}" "${{ env.OSS_ENDPOINT }}" "${{ env.OSS_ACCESS_KEY_ID }}" "${{ env.OSS_ACCESS_KEY_SECRET }}"
+        run: node scripts/upload-oss.js "${{ inputs.channel || 'stable' }}" "${{ env.OSS_BUCKET }}" "${{ env.OSS_ENDPOINT }}" "${{ env.OSS_ACCESS_KEY_ID }}" "${{ env.OSS_ACCESS_KEY_SECRET }}"
 
       # ---- Create GitHub Release ----
       - name: Create GitHub Release

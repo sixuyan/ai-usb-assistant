@@ -414,28 +414,61 @@ $configServer = [IO.Path]::Combine($SYSTEM_DIR, "config-center", "server.js")
 $configServerDir = Join-Path $SYSTEM_DIR "config-center"
 $configProcess = $null  # Always initialize for safe cleanup
 
-# Scan for available port (18788 default, scan down to 18780 if busy)
-$configPort = 18788
-$configPortFound = $false
-for ($cp = 18788; $cp -ge 18780; $cp--) {
-    $inUse = netstat -ano 2>$null | Select-String ":$cp " | Select-String "LISTENING"
-    if (-not $inUse) {
-        $configPort = $cp
-        $configPortFound = $true
-        break
+# Check server.js exists
+if (-not (Test-Path $configServer)) {
+    Write-WARN "Config Center server.js not found at: $configServer"
+    Write-WARN "  The Config Center web UI will not be available."
+    Write-WARN "  You can still configure models manually by editing:"
+    Write-WARN "  $CONFIG_FILE"
+    $configPortFound = $false
+} else {
+    # Scan for available port (18788 default, scan down to 18780 if busy)
+    $configPort = 18788
+    $configPortFound = $false
+    for ($cp = 18788; $cp -ge 18780; $cp--) {
+        $inUse = netstat -ano 2>$null | Select-String ":$cp " | Select-String "LISTENING"
+        if (-not $inUse) {
+            $configPort = $cp
+            $configPortFound = $true
+            break
+        }
     }
-}
-if (-not $configPortFound) {
-    Write-WARN "No port available for Config Center (18780-18788) - skipping"
-} elseif (Test-Path $configServer) {
-    $env:CONFIG_PORT = $configPort
-    $configProcess = Start-Process -FilePath $NODE_EXE `
-        -ArgumentList $configServer, "--port", $configPort `
-        -WorkingDirectory $configServerDir `
-        -WindowStyle Hidden `
-        -PassThru
-    Start-Sleep 1
-    Write-OK "Config Center started on port $configPort"
+
+    if (-not $configPortFound) {
+        Write-WARN "No port available for Config Center (tried 18780-18788)."
+        Write-WARN "  All ports in this range are in use. The Config Center web UI"
+        Write-WARN "  will not be available. To fix this:"
+        Write-WARN "    1. Close other applications using ports 18780-18799"
+        Write-WARN "    2. Or restart your computer"
+        Write-WARN "  You can still use the AI Assistant. Configure models by editing:"
+        Write-WARN "  $CONFIG_FILE"
+    } else {
+        $env:CONFIG_PORT = $configPort
+        $configProcess = Start-Process -FilePath $NODE_EXE `
+            -ArgumentList $configServer, "--port", $configPort `
+            -WorkingDirectory $configServerDir `
+            -WindowStyle Hidden `
+            -PassThru
+        Start-Sleep 2
+
+        # Verify Config Center actually started
+        $ccAlive = $false
+        try {
+            $ccCheck = Invoke-WebRequest -Uri "http://127.0.0.1:$configPort/" -TimeoutSec 2 -UseBasicParsing -ErrorAction Stop
+            if ($ccCheck.StatusCode -eq 200) { $ccAlive = $true }
+        } catch { }
+
+        if ($ccAlive) {
+            Write-OK "Config Center started on port $configPort (http://127.0.0.1:$configPort/)"
+        } else {
+            Write-WARN "Config Center may have failed to start on port $configPort."
+            Write-WARN "  The process was launched but is not responding."
+            Write-WARN "  Try: Open http://127.0.0.1:$configPort/ manually in your browser."
+            Write-WARN "  If it still doesn't work, check if Node.js can run server.js:"
+            Write-WARN "    & `"$NODE_EXE`" `"$configServer`" --port $configPort"
+            # Keep configProcess so cleanup can still kill it
+        }
+    }
 }
 
 # --- 4.9 Start OpenClaw Gateway ---
