@@ -101,6 +101,10 @@ foreach ($file in $allFiles) {
 
     # Compute relative path with forward slashes (cross-platform)
     $relPath = $file.FullName.Substring($UsbRoot.Length).TrimStart('\').Replace('\', '/')
+    # In upload mode, prepend "files/" prefix so manifest paths match actual OSS paths
+    if ($Upload) {
+        $relPath = "files/$relPath"
+    }
 
     # Skip excluded patterns
     $skip = $false
