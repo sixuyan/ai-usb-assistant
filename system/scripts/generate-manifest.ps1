@@ -156,7 +156,7 @@ $manifest = [ordered]@{
     files               = $files
     removedFiles        = @()
     releaseNotes        = if ($ReleaseNotes) { $ReleaseNotes } else { "Release $version ($Channel channel)" }
-    publishedAt         = (Get-Date -ToUniversalTime).ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+    publishedAt         = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
     updateType          = "incremental"
 }
 
