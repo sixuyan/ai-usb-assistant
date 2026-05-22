@@ -1,0 +1,58 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicegui-org/tauri-v2-schemas/refs/heads/main/tauri.conf.schema.json",
+  "productName": "AI助手",
+  "version": "0.1.0",
+  "identifier": "com.aiusb.assistant",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "title": "AI 助手",
+    "windows": [
+      {
+        "title": "AI 助手",
+        "width": 440,
+        "height": 680,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "tooltip": "AI 助手"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "nsis",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png"
+    ],
+    "nsis": {
+      "installMode": "currentUser",
+      "shortcutName": "AI 助手"
+    }
+  },
+  "plugins": {
+    "shell": {
+      "sidecar": true,
+      "scope": [
+        {
+          "name": "node-gateway",
+          "cmd": "../runtime/node",
+          "args": true
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "ai-usb-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "U盘便携AI助手 — 插上U盘，双击，3分钟内AI住进你的QQ/微信/飞书",
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "dev:desktop": "pnpm --filter @aiusb/desktop dev",
+    "dev:gateway": "pnpm --filter @aiusb/gateway dev",
+    "build": "pnpm -r build",
+    "build:desktop": "pnpm --filter @aiusb/desktop build",
+    "build:gateway": "pnpm --filter @aiusb/gateway build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@11.2.2"
+}
